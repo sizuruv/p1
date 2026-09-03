@@ -425,6 +425,33 @@ body.has-pad .pad-resizer{display:block;}
   color:var(--ink-soft);font-size:.82rem;text-align:center;padding:20px;pointer-events:none;line-height:1.6;
 }
 
+/* ---- Floating calculator (draggable/resizable window over the page) ---- */
+.calc-float{
+  position:fixed;z-index:99999;
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;
+  min-width:260px;min-height:320px;
+}
+.calc-float[hidden]{display:none;}
+.calc-float-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:8px 6px 8px 12px;background:var(--surface-2);border-bottom:1px solid var(--border);
+  cursor:move;-webkit-user-select:none;user-select:none;touch-action:none;
+  font-size:.8rem;font-weight:800;flex:none;
+}
+.calc-float-head .x{
+  border:none;background:none;color:var(--ink-soft);cursor:pointer;
+  font-size:1rem;line-height:1;padding:6px 8px;border-radius:8px;
+}
+.calc-float-head .x:hover{background:var(--border);color:var(--ink);}
+.calc-float-body{flex:1;border:none;width:100%;background:var(--bg);}
+.calc-float-resize{
+  position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;
+  background:linear-gradient(135deg,transparent 0 50%,var(--ink-soft) 50% 56%,transparent 56% 100%);
+  opacity:.5;
+}
+.calc-float-resize:hover{opacity:.9;}
+
 /* ---- Stats view ---- */
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;}
 table{width:100%;border-collapse:collapse;font-size:.85rem;min-width:560px;}
@@ -549,6 +576,15 @@ td.num,th.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;text
       <canvas id="padCanvas"></canvas>
     </div>
   </aside>
+</div>
+
+<div class="calc-float" id="calcFloat" hidden>
+  <div class="calc-float-head" id="calcFloatHead">
+    <span>계산기</span>
+    <button class="x" id="calcFloatClose" aria-label="닫기">✕</button>
+  </div>
+  <iframe class="calc-float-body" id="calcFloatFrame" src="" title="계산기"></iframe>
+  <div class="calc-float-resize" id="calcFloatResize"></div>
 </div>
 
 <script>
@@ -1298,7 +1334,7 @@ function initPad(){
   }
   pen.onclick = function(){ setMode('pen'); };
   eraser.onclick = function(){ setMode('eraser'); };
-  calcBtn.onclick = function(){ window.open('calculator.html', 'sobang-calc', 'width=380,height=640'); };
+  calcBtn.onclick = function(){ toggleCalcFloat(); };
   clearBtn.onclick = function(){ clearPad(); };
 
   var drawing = false, lastX = 0, lastY = 0;
@@ -1389,9 +1425,114 @@ function initPadResizer(){
   resizer.addEventListener('pointercancel', endDrag);
 }
 
+/* ---------- Floating calculator window ---------- */
+/* An <iframe> onto apps/calculator.html inside a draggable/resizable div,
+   instead of window.open() — a new tab/window has no way back on mobile
+   Safari when popups are treated as same-tab navigation, so this keeps the
+   user on the question page the whole time. */
+var CALC_RECT_KEY = 'calcFloatRect';
+
+function saveCalcRect(rect){
+  try{ localStorage.setItem(CALC_RECT_KEY, JSON.stringify(rect)); }catch(e){}
+}
+function loadCalcRect(){
+  try{ return JSON.parse(localStorage.getItem(CALC_RECT_KEY)); }catch(e){ return null; }
+}
+function defaultCalcRect(){
+  var wrap = document.getElementById('padWrap');
+  var w = 300, h = 380;
+  var marginRight = 40, marginBottom = 40;
+  if(wrap){
+    var r = wrap.getBoundingClientRect();
+    marginRight = Math.max(16, window.innerWidth - r.right + 16);
+    marginBottom = Math.max(16, window.innerHeight - r.bottom + 16);
+  }
+  return {
+    left: Math.max(8, window.innerWidth - marginRight - w),
+    top: Math.max(8, window.innerHeight - marginBottom - h),
+    width: w, height: h
+  };
+}
+function applyCalcRect(rect){
+  var el = document.getElementById('calcFloat');
+  if(!el) return;
+  el.style.left = rect.left + 'px';
+  el.style.top = rect.top + 'px';
+  el.style.width = rect.width + 'px';
+  el.style.height = rect.height + 'px';
+}
+function toggleCalcFloat(){
+  var el = document.getElementById('calcFloat');
+  if(!el) return;
+  if(el.hasAttribute('hidden')){
+    var frame = document.getElementById('calcFloatFrame');
+    if(frame && !frame.getAttribute('src')) frame.setAttribute('src', 'calculator.html');
+    applyCalcRect(loadCalcRect() || defaultCalcRect());
+    el.removeAttribute('hidden');
+  } else {
+    el.setAttribute('hidden', '');
+  }
+}
+function initCalcFloat(){
+  var el = document.getElementById('calcFloat');
+  var head = document.getElementById('calcFloatHead');
+  var closeBtn = document.getElementById('calcFloatClose');
+  var resizeHandle = document.getElementById('calcFloatResize');
+  if(!el || !head || !resizeHandle) return;
+
+  closeBtn.onclick = function(){ el.setAttribute('hidden', ''); };
+
+  function persistRect(){
+    var r = el.getBoundingClientRect();
+    saveCalcRect({ left:Math.round(r.left), top:Math.round(r.top), width:Math.round(r.width), height:Math.round(r.height) });
+  }
+
+  var dragging = false, dragDX = 0, dragDY = 0;
+  head.addEventListener('pointerdown', function(e){
+    if(e.target.closest('.x')) return;
+    dragging = true;
+    var r = el.getBoundingClientRect();
+    dragDX = e.clientX - r.left;
+    dragDY = e.clientY - r.top;
+    try{ head.setPointerCapture(e.pointerId); }catch(err){}
+    e.preventDefault();
+  });
+  head.addEventListener('pointermove', function(e){
+    if(!dragging) return;
+    var left = Math.min(Math.max(0, e.clientX - dragDX), window.innerWidth - 60);
+    var top = Math.min(Math.max(0, e.clientY - dragDY), window.innerHeight - 40);
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+    e.preventDefault();
+  });
+  function endDrag(){ if(dragging){ dragging = false; persistRect(); } }
+  head.addEventListener('pointerup', endDrag);
+  head.addEventListener('pointercancel', endDrag);
+
+  var resizing = false;
+  resizeHandle.addEventListener('pointerdown', function(e){
+    resizing = true;
+    try{ resizeHandle.setPointerCapture(e.pointerId); }catch(err){}
+    e.preventDefault();
+  });
+  resizeHandle.addEventListener('pointermove', function(e){
+    if(!resizing) return;
+    var r = el.getBoundingClientRect();
+    var w = Math.max(260, Math.min(e.clientX - r.left, window.innerWidth - r.left - 8));
+    var h = Math.max(320, Math.min(e.clientY - r.top, window.innerHeight - r.top - 8));
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+    e.preventDefault();
+  });
+  function endResize(){ if(resizing){ resizing = false; persistRect(); } }
+  resizeHandle.addEventListener('pointerup', endResize);
+  resizeHandle.addEventListener('pointercancel', endResize);
+}
+
 applySavedMainWidth();
 initPad();
 initPadResizer();
+initCalcFloat();
 render();
 })();
 </script>
