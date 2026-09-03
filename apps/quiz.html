@@ -448,9 +448,18 @@ body.has-pad .pad-resizer{display:block;}
 .calc-float-resize{
   position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;
   background:linear-gradient(135deg,transparent 0 50%,var(--ink-soft) 50% 56%,transparent 56% 100%);
-  opacity:.5;
+  opacity:.5;touch-action:none;-webkit-user-select:none;user-select:none;
 }
 .calc-float-resize:hover{opacity:.9;}
+/* Covers the whole page while dragging/resizing the calculator. Without
+   this, the moment the pointer crosses over the <iframe> (which is a
+   separate document), the browser hands pointermove events to the iframe
+   instead of us, so the drag stutters/stops there — and whatever's under
+   the pointer at that point (page text, the question card) starts reacting
+   to the drag as if it were a selection/scroll gesture. This sits above
+   the iframe and eats every event for the duration of the drag instead. */
+.calc-drag-blocker{position:fixed;inset:0;z-index:100000;display:none;touch-action:none;}
+.calc-drag-blocker.active{display:block;}
 
 /* ---- Stats view ---- */
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;}
@@ -586,6 +595,7 @@ td.num,th.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;text
   <iframe class="calc-float-body" id="calcFloatFrame" src="" title="계산기"></iframe>
   <div class="calc-float-resize" id="calcFloatResize"></div>
 </div>
+<div class="calc-drag-blocker" id="calcDragBlocker"></div>
 
 <script>
 (function(){
@@ -1478,7 +1488,8 @@ function initCalcFloat(){
   var head = document.getElementById('calcFloatHead');
   var closeBtn = document.getElementById('calcFloatClose');
   var resizeHandle = document.getElementById('calcFloatResize');
-  if(!el || !head || !resizeHandle) return;
+  var blocker = document.getElementById('calcDragBlocker');
+  if(!el || !head || !resizeHandle || !blocker) return;
 
   closeBtn.onclick = function(){ el.setAttribute('hidden', ''); };
 
@@ -1487,46 +1498,58 @@ function initCalcFloat(){
     saveCalcRect({ left:Math.round(r.left), top:Math.round(r.top), width:Math.round(r.width), height:Math.round(r.height) });
   }
 
-  var dragging = false, dragDX = 0, dragDY = 0;
-  head.addEventListener('pointerdown', function(e){
+  // Both drag and resize route their pointermove/pointerup through the
+  // full-page blocker (see .calc-drag-blocker CSS comment) instead of
+  // through `head`/`resizeHandle` directly, so the <iframe> never steals
+  // the events mid-drag.
+  var mode = null; // 'drag' | 'resize' | null
+  var dragDX = 0, dragDY = 0;
+
+  function startDrag(e){
     if(e.target.closest('.x')) return;
-    dragging = true;
+    mode = 'drag';
     var r = el.getBoundingClientRect();
     dragDX = e.clientX - r.left;
     dragDY = e.clientY - r.top;
-    try{ head.setPointerCapture(e.pointerId); }catch(err){}
+    blocker.style.cursor = 'move';
+    blocker.classList.add('active');
+    try{ blocker.setPointerCapture(e.pointerId); }catch(err){}
     e.preventDefault();
-  });
-  head.addEventListener('pointermove', function(e){
-    if(!dragging) return;
-    var left = Math.min(Math.max(0, e.clientX - dragDX), window.innerWidth - 60);
-    var top = Math.min(Math.max(0, e.clientY - dragDY), window.innerHeight - 40);
-    el.style.left = left + 'px';
-    el.style.top = top + 'px';
+  }
+  function startResize(e){
+    mode = 'resize';
+    blocker.style.cursor = 'nwse-resize';
+    blocker.classList.add('active');
+    try{ blocker.setPointerCapture(e.pointerId); }catch(err){}
     e.preventDefault();
-  });
-  function endDrag(){ if(dragging){ dragging = false; persistRect(); } }
-  head.addEventListener('pointerup', endDrag);
-  head.addEventListener('pointercancel', endDrag);
+  }
+  head.addEventListener('pointerdown', startDrag);
+  resizeHandle.addEventListener('pointerdown', startResize);
 
-  var resizing = false;
-  resizeHandle.addEventListener('pointerdown', function(e){
-    resizing = true;
-    try{ resizeHandle.setPointerCapture(e.pointerId); }catch(err){}
-    e.preventDefault();
+  blocker.addEventListener('pointermove', function(e){
+    if(mode === 'drag'){
+      var left = Math.min(Math.max(0, e.clientX - dragDX), window.innerWidth - 60);
+      var top = Math.min(Math.max(0, e.clientY - dragDY), window.innerHeight - 40);
+      el.style.left = left + 'px';
+      el.style.top = top + 'px';
+      e.preventDefault();
+    } else if(mode === 'resize'){
+      var r = el.getBoundingClientRect();
+      var w = Math.max(260, Math.min(e.clientX - r.left, window.innerWidth - r.left - 8));
+      var h = Math.max(320, Math.min(e.clientY - r.top, window.innerHeight - r.top - 8));
+      el.style.width = w + 'px';
+      el.style.height = h + 'px';
+      e.preventDefault();
+    }
   });
-  resizeHandle.addEventListener('pointermove', function(e){
-    if(!resizing) return;
-    var r = el.getBoundingClientRect();
-    var w = Math.max(260, Math.min(e.clientX - r.left, window.innerWidth - r.left - 8));
-    var h = Math.max(320, Math.min(e.clientY - r.top, window.innerHeight - r.top - 8));
-    el.style.width = w + 'px';
-    el.style.height = h + 'px';
-    e.preventDefault();
-  });
-  function endResize(){ if(resizing){ resizing = false; persistRect(); } }
-  resizeHandle.addEventListener('pointerup', endResize);
-  resizeHandle.addEventListener('pointercancel', endResize);
+  function endInteraction(){
+    if(!mode) return;
+    mode = null;
+    blocker.classList.remove('active');
+    persistRect();
+  }
+  blocker.addEventListener('pointerup', endInteraction);
+  blocker.addEventListener('pointercancel', endInteraction);
 }
 
 applySavedMainWidth();
