@@ -42,8 +42,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
+  // { cache: 'no-store' } here matters: without it, fetch() can be silently
+  // satisfied by the browser's own HTTP cache instead of hitting the network,
+  // which defeated the network-first intent (edits stopped showing up until
+  // the HTTP cache happened to expire).
+  const freshRequest = new Request(event.request.url, {
+    method: event.request.method,
+    headers: event.request.headers,
+    mode: event.request.mode === 'navigate' ? 'same-origin' : event.request.mode,
+    credentials: event.request.credentials,
+    redirect: event.request.redirect,
+    cache: 'no-store'
+  });
+
   event.respondWith(
-    fetch(event.request)
+    fetch(freshRequest)
       .then((response) => {
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
