@@ -8,57 +8,31 @@
 <script src="../shell.js"></script>
 <style>
 :root{
-  --bg:#eef0ec;
-  --surface:#ffffff;
-  --surface-2:#e3e7e1;
-  --ink:#1b201d;
-  --ink-soft:#5b655e;
-  --border:#d4d9d0;
-  --ember:#bd431c;
-  --ember-ink:#ffffff;
-  --ember-soft:#f6ded2;
-  --smoke:#3f5a63;
-  --focus:#bd431c;
-  --correct:#2e7a49;
-  --correct-soft:#dcefe1;
-  --wrong:#ab3535;
-  --wrong-soft:#f6dcdc;
-  --tag-gong:#4d6f97;
-  --tag-gong-soft:#dde6f0;
-  --tag-gisa:#3f8574;
-  --tag-gisa-soft:#dcede8;
-  --tag-gwal:#8a4f80;
-  --tag-gwal-soft:#eeddec;
-  --shadow:0 1px 2px rgba(20,20,15,.06),0 6px 20px -8px rgba(20,20,15,.18);
+  --bg:#15181a;
+  --surface:#1d2225;
+  --surface-2:#262c2f;
+  --ink:#eceeec;
+  --ink-soft:#9aa39d;
+  --border:#333a3d;
+  --ember:#e2793f;
+  --ember-ink:#1a1008;
+  --ember-soft:#3a2416;
+  --smoke:#8fa4ac;
+  --focus:#e2793f;
+  --correct:#5cb87d;
+  --correct-soft:#173423;
+  --wrong:#e08683;
+  --wrong-soft:#3a1e1e;
+  --tag-gong:#8fb1d8;
+  --tag-gong-soft:#22303e;
+  --tag-gisa:#7fc4ae;
+  --tag-gisa-soft:#1c332c;
+  --tag-gwal:#cd97c4;
+  --tag-gwal-soft:#33222f;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 24px -10px rgba(0,0,0,.5);
   --radius:14px;
   --font-ui:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
   --font-num:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
-}
-@media (prefers-color-scheme:dark){
-  :root{
-    --bg:#15181a;
-    --surface:#1d2225;
-    --surface-2:#262c2f;
-    --ink:#eceeec;
-    --ink-soft:#9aa39d;
-    --border:#333a3d;
-    --ember:#e2793f;
-    --ember-ink:#1a1008;
-    --ember-soft:#3a2416;
-    --smoke:#8fa4ac;
-    --focus:#e2793f;
-    --correct:#5cb87d;
-    --correct-soft:#173423;
-    --wrong:#e08683;
-    --wrong-soft:#3a1e1e;
-    --tag-gong:#8fb1d8;
-    --tag-gong-soft:#22303e;
-    --tag-gisa:#7fc4ae;
-    --tag-gisa-soft:#1c332c;
-    --tag-gwal:#cd97c4;
-    --tag-gwal-soft:#33222f;
-    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 24px -10px rgba(0,0,0,.5);
-  }
 }
 :root[data-theme="dark"]{
   --bg:#15181a;--surface:#1d2225;--surface-2:#262c2f;--ink:#eceeec;--ink-soft:#9aa39d;
@@ -406,6 +380,42 @@ body.nav-collapsed .main{padding-top:64px;}
 .nav-buttons{display:flex;gap:10px;margin-top:18px;}
 .nav-buttons .btn{flex:1;justify-content:center;}
 
+/* ---- Scratchpad (memo pad, lives outside #main so it survives re-renders) ---- */
+#padPanel{
+  display:none;flex-direction:column;
+  flex:0 0 380px;margin:28px 32px 90px 0;
+  align-self:flex-start;position:sticky;top:28px;
+  max-height:calc(100vh - 56px);overflow:hidden;
+}
+body.has-pad #padPanel{display:flex;}
+body.has-pad .main{padding-right:16px;}
+.pad-panel{padding:0;overflow:hidden;}
+.pad-head{
+  display:flex;align-items:center;gap:8px;padding:12px 14px;
+  border-bottom:1px solid var(--border);-webkit-user-select:none;user-select:none;
+}
+.pad-head h3{font-size:.84rem;font-weight:800;}
+.pad-head .spacer{flex:1;}
+.pad-tool{
+  border:1px solid var(--border);background:var(--surface);border-radius:8px;
+  padding:5px 9px;font-size:.76rem;font-weight:700;color:var(--ink-soft);cursor:pointer;
+}
+.pad-tool.on{color:var(--ember);border-color:var(--ember);background:var(--ember-soft);}
+.pad-canvas-wrap{
+  position:relative;flex:1;min-height:220px;touch-action:none;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  background:repeating-linear-gradient(var(--surface) 0 27px, var(--surface-2) 27px 28px);
+}
+.pad-canvas-wrap.expanded{min-height:58vh;}
+.pad-canvas-wrap canvas{
+  position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
+.pad-placeholder{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--ink-soft);font-size:.82rem;text-align:center;padding:20px;pointer-events:none;line-height:1.6;
+}
+
 /* ---- Stats view ---- */
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;}
 table{width:100%;border-collapse:collapse;font-size:.85rem;min-width:560px;}
@@ -456,6 +466,9 @@ td.num,th.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;text
   .nav-btn{position:relative;flex:1;}
   .main{padding:20px 16px 90px;max-width:none;}
   .stat-grid{grid-template-columns:repeat(2,1fr);}
+  #padPanel{flex:none;margin:0 16px 20px;position:static;max-height:none;}
+  body.has-pad .main{padding-right:16px;}
+  .pad-canvas-wrap{min-height:280px;}
 }
 @media (max-width:520px){
   .cta-row{flex-direction:column;}
@@ -512,6 +525,20 @@ td.num,th.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;text
     <div class="nav-spacer"></div>
   </nav>
   <main class="main" id="main"></main>
+  <aside class="pad-panel card" id="padPanel">
+    <div class="pad-head">
+      <h3>계산 메모장</h3>
+      <span class="spacer"></span>
+      <button class="pad-tool on" id="padPen" title="펜">펜</button>
+      <button class="pad-tool" id="padEraser" title="지우개">지우개</button>
+      <button class="pad-tool" id="padExpand" title="확대">확대</button>
+      <button class="pad-tool" id="padClear" title="전체 지우기">지우기</button>
+    </div>
+    <div class="pad-canvas-wrap" id="padWrap">
+      <div class="pad-placeholder" id="padPlaceholder">애플펜슬 또는 손가락으로<br>여기에 계산 과정을 적어보세요</div>
+      <canvas id="padCanvas"></canvas>
+    </div>
+  </aside>
 </div>
 
 <script>
@@ -700,6 +727,7 @@ function render(){
   else if(view==='stats') main.innerHTML = renderStats();
   else if(view==='settings') main.innerHTML = renderSettings();
   bindView();
+  syncPad();
 
   if(focusId){
     var el = document.getElementById(focusId);
@@ -1168,6 +1196,123 @@ if(navSearchClear) navSearchClear.onclick = function(){
   applySearch('');
 };
 
+/* ---------- Calc memo pad ---------- */
+/* Lives outside #main so choosing an answer / starring / filtering
+   (all of which re-render #main) never wipes what's on the canvas.
+   Only switching to a different question clears it. */
+var padCtx = null;
+var padMode = 'pen';
+var padQId = null;
+
+function syncPad(){
+  var show = (view==='study' || view==='wrong') && queue.length>0;
+  document.body.classList.toggle('has-pad', show);
+  if(!show) return;
+  var q = DATA_BY_ID[queue[qIndex]];
+  if(q && q.id !== padQId){
+    padQId = q.id;
+    clearPad();
+  }
+  resizePadCanvas();
+}
+
+function resizePadCanvas(){
+  var canvas = document.getElementById('padCanvas');
+  var wrap = document.getElementById('padWrap');
+  if(!canvas || !wrap) return;
+  var rect = wrap.getBoundingClientRect();
+  var dpr = window.devicePixelRatio || 1;
+  var w = Math.max(1, Math.round(rect.width * dpr));
+  var h = Math.max(1, Math.round(rect.height * dpr));
+  if(canvas.width===w && canvas.height===h) return;
+  canvas.width = w;
+  canvas.height = h;
+  padCtx = canvas.getContext('2d');
+  padCtx.scale(dpr, dpr);
+}
+
+function clearPad(){
+  var canvas = document.getElementById('padCanvas');
+  var placeholder = document.getElementById('padPlaceholder');
+  if(!canvas) return;
+  resizePadCanvas();
+  if(padCtx) padCtx.clearRect(0, 0, canvas.width, canvas.height);
+  if(placeholder) placeholder.style.display = 'flex';
+}
+
+function strokeSeg(x0,y0,x1,y1){
+  if(!padCtx) return;
+  padCtx.lineJoin = 'round';
+  padCtx.lineCap = 'round';
+  if(padMode==='eraser'){
+    padCtx.globalCompositeOperation = 'destination-out';
+    padCtx.lineWidth = 22;
+  } else {
+    padCtx.globalCompositeOperation = 'source-over';
+    padCtx.lineWidth = 2.4;
+    padCtx.strokeStyle = (getComputedStyle(document.documentElement).getPropertyValue('--ink') || '#eceeec').trim();
+  }
+  padCtx.beginPath();
+  padCtx.moveTo(x0, y0);
+  padCtx.lineTo(x1, y1);
+  padCtx.stroke();
+}
+
+function initPad(){
+  var canvas = document.getElementById('padCanvas');
+  var wrap = document.getElementById('padWrap');
+  var placeholder = document.getElementById('padPlaceholder');
+  var pen = document.getElementById('padPen');
+  var eraser = document.getElementById('padEraser');
+  var expand = document.getElementById('padExpand');
+  var clearBtn = document.getElementById('padClear');
+  if(!canvas) return;
+  padCtx = canvas.getContext('2d');
+
+  function setMode(m){
+    padMode = m;
+    pen.classList.toggle('on', m==='pen');
+    eraser.classList.toggle('on', m==='eraser');
+  }
+  pen.onclick = function(){ setMode('pen'); };
+  eraser.onclick = function(){ setMode('eraser'); };
+  expand.onclick = function(){
+    wrap.classList.toggle('expanded');
+    expand.classList.toggle('on', wrap.classList.contains('expanded'));
+    resizePadCanvas();
+  };
+  clearBtn.onclick = function(){ clearPad(); };
+
+  var drawing = false, lastX = 0, lastY = 0;
+  function pos(e){
+    var r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  canvas.addEventListener('pointerdown', function(e){
+    drawing = true;
+    if(placeholder) placeholder.style.display = 'none';
+    try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+    var p = pos(e);
+    lastX = p.x; lastY = p.y;
+    strokeSeg(p.x, p.y, p.x, p.y);
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', function(e){
+    if(!drawing) return;
+    var p = pos(e);
+    strokeSeg(lastX, lastY, p.x, p.y);
+    lastX = p.x; lastY = p.y;
+    e.preventDefault();
+  });
+  function endStroke(){ drawing = false; }
+  canvas.addEventListener('pointerup', endStroke);
+  canvas.addEventListener('pointercancel', endStroke);
+  canvas.addEventListener('pointerleave', endStroke);
+
+  window.addEventListener('resize', function(){ resizePadCanvas(); });
+}
+
+initPad();
 render();
 })();
 </script>
