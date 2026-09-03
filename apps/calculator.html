@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+<title>공학용 계산기</title>
+<style>
+  :root{
+    --bg:#eef0ec; --surface:#ffffff; --surface-2:#e3e7e1;
+    --ink:#1b201d; --ink-soft:#5b655e; --border:#d4d9d0;
+    --ember:#bd431c; --ember-ink:#ffffff; --ember-soft:#f6ded2;
+    --wrong:#ab3535; --wrong-soft:#f6dcdc;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;touch-action:manipulation;}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    min-height:100vh;min-height:100dvh;
+    display:flex;flex-direction:column;
+    padding:calc(10px + env(safe-area-inset-top,0px)) 10px calc(10px + env(safe-area-inset-bottom,0px));
+  }
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 10px;}
+  .topbar h1{font-size:.86rem;font-weight:800;margin:0;}
+  .modebtn{
+    border:1px solid var(--border);background:var(--surface);color:var(--ink-soft);
+    border-radius:8px;padding:5px 10px;font-size:.74rem;font-weight:700;cursor:pointer;
+  }
+  .modebtn.on{color:var(--ember);border-color:var(--ember);background:var(--ember-soft);}
+  .display{
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:16px 14px;margin-bottom:10px;text-align:right;
+  }
+  .display .expr{font-size:.8rem;color:var(--ink-soft);min-height:1.2em;word-break:break-all;}
+  .display .result{font-size:1.9rem;font-weight:700;font-variant-numeric:tabular-nums;word-break:break-all;line-height:1.25;}
+  .display.err .result{color:var(--wrong);font-size:1.1rem;}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;flex:1;}
+  button.key{
+    appearance:none;border:1px solid var(--border);background:var(--surface);color:var(--ink);
+    border-radius:11px;font-size:.92rem;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;padding:0;min-height:48px;
+  }
+  button.key:active{background:var(--surface-2);}
+  button.key.op{color:var(--ember);}
+  button.key.eq{background:var(--ember);border-color:var(--ember);color:var(--ember-ink);grid-row:span 2;}
+  button.key.wide{grid-column:span 2;}
+  button.key.mem.active{border-color:var(--ember);color:var(--ember);background:var(--ember-soft);}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>🔥 공학용 계산기</h1>
+    <button class="modebtn on" id="degBtn">DEG</button>
+  </div>
+  <div class="display" id="display">
+    <div class="expr" id="exprLine">&nbsp;</div>
+    <div class="result" id="resultLine">0</div>
+  </div>
+  <div class="grid" id="grid"></div>
+
+<script>
+(function(){
+  var expr = '';
+  var lastResult = null;
+  var deg = true;
+  var memory = 0;
+
+  var exprLine = document.getElementById('exprLine');
+  var resultLine = document.getElementById('resultLine');
+  var display = document.getElementById('display');
+  var degBtn = document.getElementById('degBtn');
+  var grid = document.getElementById('grid');
+
+  var KEYS = [
+    { label:'MC', act:'mc', cls:'mem' }, { label:'MR', act:'mr', cls:'mem' },
+    { label:'M+', act:'mplus', cls:'mem' }, { label:'M-', act:'mminus', cls:'mem' },
+    { label:'C', act:'clear' },
+    { label:'sin', ins:'sin(' }, { label:'cos', ins:'cos(' }, { label:'tan', ins:'tan(' },
+    { label:'(', ins:'(' }, { label:')', ins:')' },
+    { label:'log', ins:'log(' }, { label:'ln', ins:'ln(' }, { label:'√', ins:'sqrt(' },
+    { label:'x^y', ins:'^' }, { label:'⌫', act:'back' },
+    { label:'π', ins:'pi' }, { label:'7', ins:'7' }, { label:'8', ins:'8' }, { label:'9', ins:'9' }, { label:'÷', ins:'/', cls:'op' },
+    { label:'e', ins:'e' }, { label:'4', ins:'4' }, { label:'5', ins:'5' }, { label:'6', ins:'6' }, { label:'×', ins:'*', cls:'op' },
+    { label:'1/x', ins:'1/(' }, { label:'1', ins:'1' }, { label:'2', ins:'2' }, { label:'3', ins:'3' }, { label:'-', ins:'-', cls:'op' },
+    { label:'%', ins:'%' }, { label:'0', ins:'0', cls:'wide' }, { label:'.', ins:'.' }, { label:'+', ins:'+', cls:'op' },
+    { label:'=', act:'eq', cls:'eq' }
+  ];
+
+  KEYS.forEach(function(k){
+    var btn = document.createElement('button');
+    btn.className = 'key' + (k.cls ? ' ' + k.cls : '');
+    btn.textContent = k.label;
+    btn.dataset.act = k.act || '';
+    btn.dataset.ins = k.ins || '';
+    grid.appendChild(btn);
+  });
+
+  function render(){
+    exprLine.textContent = expr || ' ';
+    display.classList.remove('err');
+    resultLine.textContent = lastResult===null ? '0' : lastResult;
+  }
+
+  function tokenize(s){
+    var tokens = [];
+    var i = 0;
+    var funcs = ['sin','cos','tan','log','ln','sqrt'];
+    while(i < s.length){
+      var c = s[i];
+      if(c === ' '){ i++; continue; }
+      if(/[0-9.]/.test(c)){
+        var num = '';
+        while(i < s.length && /[0-9.]/.test(s[i])){ num += s[i]; i++; }
+        tokens.push({ t:'num', v:parseFloat(num) });
+        continue;
+      }
+      var matchedFunc = null;
+      for(var f=0; f<funcs.length; f++){
+        if(s.slice(i, i+funcs[f].length) === funcs[f]){ matchedFunc = funcs[f]; break; }
+      }
+      if(matchedFunc){ tokens.push({ t:'func', v:matchedFunc }); i += matchedFunc.length; continue; }
+      if(s.slice(i, i+2) === 'pi'){ tokens.push({ t:'num', v:Math.PI }); i += 2; continue; }
+      if(c === 'e'){ tokens.push({ t:'num', v:Math.E }); i++; continue; }
+      if('+-*/^%()'.indexOf(c) !== -1){ tokens.push({ t:'op', v:c }); i++; continue; }
+      throw new Error('bad char: ' + c);
+    }
+    return tokens;
+  }
+
+  // Recursive-descent parser: expr -> term (('+'|'-') term)*
+  // term -> pow (('*'|'/'|'%') pow)*   pow -> unary ('^' unary)?
+  // unary -> '-' unary | primary   primary -> num | func '(' expr ')' | '(' expr ')'
+  function parse(tokens){
+    var pos = 0;
+    function peek(){ return tokens[pos]; }
+    function next(){ return tokens[pos++]; }
+
+    function parsePrimary(){
+      var tk = peek();
+      if(!tk) throw new Error('unexpected end');
+      if(tk.t === 'num'){ next(); return tk.v; }
+      if(tk.t === 'func'){
+        next();
+        var open = next();
+        if(!open || open.v !== '(') throw new Error('expected (');
+        var val = parseExpr();
+        var close = next();
+        if(!close || close.v !== ')') throw new Error('expected )');
+        return applyFunc(tk.v, val);
+      }
+      if(tk.t === 'op' && tk.v === '('){
+        next();
+        var v = parseExpr();
+        var c = next();
+        if(!c || c.v !== ')') throw new Error('expected )');
+        return v;
+      }
+      throw new Error('unexpected token');
+    }
+    function parseUnary(){
+      var tk = peek();
+      if(tk && tk.t === 'op' && tk.v === '-'){ next(); return -parseUnary(); }
+      if(tk && tk.t === 'op' && tk.v === '+'){ next(); return parseUnary(); }
+      return parsePrimary();
+    }
+    function parsePow(){
+      var v = parseUnary();
+      var tk = peek();
+      if(tk && tk.t === 'op' && tk.v === '^'){ next(); return Math.pow(v, parsePow()); }
+      return v;
+    }
+    function parseTerm(){
+      var v = parsePow();
+      for(;;){
+        var tk = peek();
+        if(tk && tk.t === 'op' && (tk.v === '*' || tk.v === '/' || tk.v === '%')){
+          next();
+          var r = parsePow();
+          if(tk.v === '*') v = v * r;
+          else if(tk.v === '/') v = v / r;
+          else v = v % r;
+        } else break;
+      }
+      return v;
+    }
+    function parseExpr(){
+      var v = parseTerm();
+      for(;;){
+        var tk = peek();
+        if(tk && tk.t === 'op' && (tk.v === '+' || tk.v === '-')){
+          next();
+          var r = parseTerm();
+          v = tk.v === '+' ? v + r : v - r;
+        } else break;
+      }
+      return v;
+    }
+    var result = parseExpr();
+    if(pos !== tokens.length) throw new Error('trailing tokens');
+    return result;
+  }
+
+  function applyFunc(name, v){
+    var rad = deg ? (v * Math.PI / 180) : v;
+    switch(name){
+      case 'sin': return Math.sin(rad);
+      case 'cos': return Math.cos(rad);
+      case 'tan': return Math.tan(rad);
+      case 'log': return Math.log10(v);
+      case 'ln': return Math.log(v);
+      case 'sqrt': return Math.sqrt(v);
+    }
+    return v;
+  }
+
+  function formatResult(n){
+    if(!isFinite(n)) return 'Error';
+    var r = Math.round(n * 1e10) / 1e10;
+    return String(r);
+  }
+
+  function evaluate(){
+    if(!expr){ return; }
+    try{
+      var tokens = tokenize(expr);
+      var val = parse(tokens);
+      lastResult = formatResult(val);
+      render();
+    } catch(e){
+      display.classList.add('err');
+      resultLine.textContent = '식을 확인하세요';
+    }
+  }
+
+  grid.addEventListener('click', function(e){
+    var btn = e.target.closest('button.key');
+    if(!btn) return;
+    var act = btn.dataset.act;
+    var ins = btn.dataset.ins;
+    if(ins){
+      expr += ins;
+      render();
+      return;
+    }
+    switch(act){
+      case 'clear': expr=''; lastResult=null; render(); break;
+      case 'back': expr = expr.slice(0,-1); render(); break;
+      case 'eq': evaluate(); break;
+      case 'mc': memory = 0; updateMemBtns(); break;
+      case 'mr': expr += String(memory); render(); break;
+      case 'mplus':
+        try{ memory += parse(tokenize(expr || lastResult || '0')); }catch(e){}
+        updateMemBtns();
+        break;
+      case 'mminus':
+        try{ memory -= parse(tokenize(expr || lastResult || '0')); }catch(e){}
+        updateMemBtns();
+        break;
+    }
+  });
+
+  function updateMemBtns(){
+    document.querySelectorAll('.key.mem').forEach(function(b){
+      b.classList.toggle('active', memory !== 0);
+    });
+  }
+
+  degBtn.addEventListener('click', function(){
+    deg = !deg;
+    degBtn.textContent = deg ? 'DEG' : 'RAD';
+    degBtn.classList.toggle('on', deg);
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(/[0-9+\-*/.^()%]/.test(e.key)){ expr += e.key; render(); }
+    else if(e.key === 'Enter'){ evaluate(); }
+    else if(e.key === 'Backspace'){ expr = expr.slice(0,-1); render(); }
+    else if(e.key === 'Escape'){ expr=''; lastResult=null; render(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

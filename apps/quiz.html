@@ -383,12 +383,22 @@ body.nav-collapsed .main{padding-top:64px;}
 /* ---- Scratchpad (memo pad, lives outside #main so it survives re-renders) ---- */
 #padPanel{
   display:none;flex-direction:column;
-  flex:1;min-width:320px;margin:28px 32px 28px 0;
+  flex:1;min-width:280px;margin:28px 32px 28px 0;
   position:sticky;top:28px;
   height:calc(100vh - 56px);overflow:hidden;
 }
 body.has-pad #padPanel{display:flex;}
-body.has-pad .main{flex:0 1 660px;padding-right:16px;}
+body.has-pad .main{flex:0 1 var(--main-w, 660px);min-width:320px;}
+.pad-resizer{
+  display:none;flex:0 0 14px;cursor:col-resize;position:relative;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none;
+}
+body.has-pad .pad-resizer{display:block;}
+.pad-resizer::after{
+  content:'';position:absolute;top:28px;bottom:28px;left:50%;width:3px;
+  transform:translateX(-50%);border-radius:99px;background:var(--border);
+}
+.pad-resizer:hover::after,.pad-resizer.dragging::after{background:var(--ember);}
 .pad-panel{padding:0;overflow:hidden;}
 .pad-head{
   display:flex;align-items:center;gap:8px;padding:12px 14px;
@@ -406,7 +416,6 @@ body.has-pad .main{flex:0 1 660px;padding-right:16px;}
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
   background:repeating-linear-gradient(var(--surface) 0 27px, var(--surface-2) 27px 28px);
 }
-.pad-canvas-wrap.expanded{min-height:58vh;}
 .pad-canvas-wrap canvas{
   position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
@@ -467,7 +476,7 @@ td.num,th.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;text
   .main{padding:20px 16px 90px;max-width:none;}
   .stat-grid{grid-template-columns:repeat(2,1fr);}
   #padPanel{flex:none;margin:0 16px 20px;position:static;max-height:none;}
-  body.has-pad .main{padding-right:16px;}
+  .pad-resizer{display:none !important;}
   .pad-canvas-wrap{min-height:280px;}
 }
 @media (max-width:520px){
@@ -525,13 +534,14 @@ td.num,th.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;text
     <div class="nav-spacer"></div>
   </nav>
   <main class="main" id="main"></main>
+  <div class="pad-resizer" id="padResizer"></div>
   <aside class="pad-panel card" id="padPanel">
     <div class="pad-head">
       <h3>계산 메모장</h3>
       <span class="spacer"></span>
       <button class="pad-tool on" id="padPen" title="펜">펜</button>
       <button class="pad-tool" id="padEraser" title="지우개">지우개</button>
-      <button class="pad-tool" id="padExpand" title="확대">확대</button>
+      <button class="pad-tool" id="padCalc" title="계산기">계산기</button>
       <button class="pad-tool" id="padClear" title="전체 지우기">지우기</button>
     </div>
     <div class="pad-canvas-wrap" id="padWrap">
@@ -1166,6 +1176,10 @@ function setNavCollapsed(v){
   state.settings.navCollapsed = v;
   saveState();
   document.body.classList.toggle('nav-collapsed', v);
+  // .nav's width/opacity transition (~220ms) keeps shifting #padWrap's box
+  // after this; the ResizeObserver in initPad() tracks that continuously,
+  // this call just gives the canvas a head start at the moment of the click.
+  if(typeof resizePadCanvas === 'function') resizePadCanvas();
 }
 document.body.classList.toggle('nav-collapsed', !!state.settings.navCollapsed);
 var navCollapseBtn = document.getElementById('navCollapseBtn');
@@ -1216,6 +1230,14 @@ function syncPad(){
   resizePadCanvas();
 }
 
+/* Redraws nothing (the previous stroke bitmap is intentionally lost on
+   resize) but keeps the canvas's backing-store pixel size in sync with
+   its on-screen CSS size. Called on every layout change that can alter
+   #padWrap's box (window resize, nav collapse/expand, divider drag) via
+   the ResizeObserver set up in initPad() below — without this, the
+   backing store and the CSS box drift apart and pointer coordinates
+   (computed against the live CSS box in pos()) stop lining up with what
+   actually gets drawn. */
 function resizePadCanvas(){
   var canvas = document.getElementById('padCanvas');
   var wrap = document.getElementById('padWrap');
@@ -1264,7 +1286,7 @@ function initPad(){
   var placeholder = document.getElementById('padPlaceholder');
   var pen = document.getElementById('padPen');
   var eraser = document.getElementById('padEraser');
-  var expand = document.getElementById('padExpand');
+  var calcBtn = document.getElementById('padCalc');
   var clearBtn = document.getElementById('padClear');
   if(!canvas) return;
   padCtx = canvas.getContext('2d');
@@ -1276,11 +1298,7 @@ function initPad(){
   }
   pen.onclick = function(){ setMode('pen'); };
   eraser.onclick = function(){ setMode('eraser'); };
-  expand.onclick = function(){
-    wrap.classList.toggle('expanded');
-    expand.classList.toggle('on', wrap.classList.contains('expanded'));
-    resizePadCanvas();
-  };
+  calcBtn.onclick = function(){ window.open('calculator.html', 'sobang-calc', 'width=380,height=640'); };
   clearBtn.onclick = function(){ clearPad(); };
 
   var drawing = false, lastX = 0, lastY = 0;
@@ -1309,10 +1327,71 @@ function initPad(){
   canvas.addEventListener('pointercancel', endStroke);
   canvas.addEventListener('pointerleave', endStroke);
 
-  window.addEventListener('resize', function(){ resizePadCanvas(); });
+  /* iPadOS Scribble intercepts Apple Pencil input at the system level and
+     looks for handwriting-shaped strokes even outside text fields; on some
+     iOS/iPadOS versions this swallows/delays the *next* pointerdown after a
+     pencil-up while Scribble finishes evaluating the previous stroke, which
+     shows up as "lag when starting a new stroke, but only with the Pencil."
+     The documented workaround (unrelated as it looks) is to also listen for
+     touchstart/touchmove and preventDefault them — that stops iOS from ever
+     handing the input to Scribble in the first place. Pointer events still
+     do the actual drawing above; these two listeners exist purely to shut
+     Scribble out. { passive:false } is required for preventDefault to work. */
+  canvas.addEventListener('touchstart', function(e){ e.preventDefault(); }, { passive:false });
+  canvas.addEventListener('touchmove', function(e){ e.preventDefault(); }, { passive:false });
+
+  if('ResizeObserver' in window){
+    var ro = new ResizeObserver(function(){ resizePadCanvas(); });
+    ro.observe(wrap);
+  } else {
+    window.addEventListener('resize', function(){ resizePadCanvas(); });
+  }
 }
 
+var MAIN_W_KEY = 'padSplitMainWidth';
+function applySavedMainWidth(){
+  var saved = parseInt(localStorage.getItem(MAIN_W_KEY), 10);
+  if(saved && saved > 200){
+    document.documentElement.style.setProperty('--main-w', saved + 'px');
+  }
+}
+
+function initPadResizer(){
+  var resizer = document.getElementById('padResizer');
+  var mainEl = document.getElementById('main');
+  var appEl = document.querySelector('.app');
+  if(!resizer || !mainEl || !appEl) return;
+  var dragging = false;
+  resizer.addEventListener('pointerdown', function(e){
+    dragging = true;
+    resizer.classList.add('dragging');
+    try{ resizer.setPointerCapture(e.pointerId); }catch(err){}
+    e.preventDefault();
+  });
+  resizer.addEventListener('pointermove', function(e){
+    if(!dragging) return;
+    var mainRect = mainEl.getBoundingClientRect();
+    var appRect = appEl.getBoundingClientRect();
+    var w = Math.round(e.clientX - mainRect.left);
+    var maxW = Math.round(appRect.right - mainRect.left - 14 - 280 - 32);
+    w = Math.max(320, Math.min(w, Math.max(320, maxW)));
+    document.documentElement.style.setProperty('--main-w', w + 'px');
+    e.preventDefault();
+  });
+  function endDrag(){
+    if(!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    var w = Math.round(mainEl.getBoundingClientRect().width);
+    if(w > 200) localStorage.setItem(MAIN_W_KEY, w);
+  }
+  resizer.addEventListener('pointerup', endDrag);
+  resizer.addEventListener('pointercancel', endDrag);
+}
+
+applySavedMainWidth();
 initPad();
+initPadResizer();
 render();
 })();
 </script>
