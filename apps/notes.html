@@ -7,7 +7,7 @@
 <title>소방기술사 복습노트</title>
 <!-- PWA: 아래 태그들은 이 파일이 같은 폴더에 manifest.json / apple-touch-icon.png / icon-192.png / icon-512.png / sw.js 와 함께 있을 때 의미가 있습니다(형님이 전달받은 pwa 폴더 참고). 로컬 file:// 로 열 때는 대부분 브라우저가 제한하지만, 나중에 무료 호스팅(GitHub Pages 등)에 올리면 이 태그들 덕분에 바로 완전한 설치형 PWA로 동작합니다. -->
 <link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#8b1515" />
+<meta name="theme-color" content="#ea580c" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="소방복습노트" />
@@ -17,9 +17,9 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
 <style>
   :root{
-    --bg:#0c0a09; --panel:#17140f; --panel2:#1c1814;
-    --line:rgba(255,255,255,0.08); --line2:rgba(255,255,255,0.12);
-    --text:#f5f2ee; --sub:#c9c2b8; --sub2:#a39c90;
+    --bg:#ffffff; --panel:#f5f3ef; --panel2:#ece9e4;
+    --line:rgba(0,0,0,0.08); --line2:rgba(0,0,0,0.12);
+    --text:#1c1815; --sub:#57524c; --sub2:#8a847d;
     --orange:#ea580c; --orange-soft:rgba(234,88,12,0.15); --orange-line:rgba(234,88,12,0.35);
     --green:#10b981; --amber:#f59e0b; --rose:#f43f5e;
   }
@@ -50,22 +50,22 @@
   .tabs{display:flex;gap:8px;margin-top:16px;}
   .tabs button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
     border-radius:10px;padding:10px 12px;font-size:13.5px;font-weight:600;border:none;cursor:pointer;
-    background:rgba(255,255,255,0.05);color:var(--sub);transition:.15s;}
+    background:rgba(0,0,0,0.05);color:var(--sub);transition:.15s;}
   .tabs button.active{background:var(--orange);color:#fff;}
-  .tabs button:hover:not(.active){background:rgba(255,255,255,0.09);}
+  .tabs button:hover:not(.active){background:rgba(0,0,0,0.09);}
 
   /* 홈 화면 */
   .section{padding:18px 20px 4px;}
   .section-head{display:flex;align-items:center;gap:6px;color:var(--sub);font-size:12px;margin-bottom:10px;}
-  .deckcard{display:block;width:100%;text-align:left;border-radius:16px;background:rgba(255,255,255,0.04);
+  .deckcard{display:block;width:100%;text-align:left;border-radius:16px;background:rgba(0,0,0,0.04);
     border:1px solid var(--line);padding:14px 16px;margin-bottom:12px;cursor:pointer;transition:.15s;}
-  .deckcard:hover{background:rgba(255,255,255,0.07);}
+  .deckcard:hover{background:rgba(0,0,0,0.07);}
   .deckcard .row-top{display:flex;justify-content:space-between;align-items:center;}
   .deckcard .week{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--orange);}
   .deckcard .pct{font-size:11px;color:var(--sub2);}
   .deckcard .label{margin:4px 0 1px;font-size:15.5px;font-weight:700;}
   .deckcard .sub{font-size:12px;color:var(--sub2);margin:0;}
-  .miniprogress{margin-top:10px;height:6px;border-radius:99px;overflow:hidden;background:rgba(255,255,255,0.06);
+  .miniprogress{margin-top:10px;height:6px;border-radius:99px;overflow:hidden;background:rgba(0,0,0,0.06);
     display:flex;}
   .deckcard .footrow{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--sub2);}
   .deckcard .footrow .know{color:var(--green);}
@@ -74,9 +74,9 @@
   .gridwrap{padding:16px 20px 8px;}
   .weekgrid, .lecturegrid{display:grid;grid-template-columns:repeat(auto-fill, minmax(72px,1fr));gap:10px;}
   .weekbtn, .lecturebtn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:2px;aspect-ratio:1/1;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid var(--line);
+    gap:2px;aspect-ratio:1/1;border-radius:14px;background:rgba(0,0,0,0.04);border:1px solid var(--line);
     cursor:pointer;padding:6px 4px;transition:.15s;}
-  .weekbtn:hover, .lecturebtn:hover{background:rgba(255,255,255,0.08);border-color:var(--line2);}
+  .weekbtn:hover, .lecturebtn:hover{background:rgba(0,0,0,0.08);border-color:var(--line2);}
   .weekbtn .num, .lecturebtn .num{font-size:19px;font-weight:800;color:var(--text);line-height:1.1;}
   .weekbtn .unit, .lecturebtn .unit{font-size:10px;color:var(--sub);}
   .weekbtn .pct, .lecturebtn .pct{font-size:9px;color:var(--orange);margin-top:1px;font-weight:700;}
@@ -85,9 +85,9 @@
   .weekbtn.complete .ring, .lecturebtn.complete .ring{opacity:1;}
 
   .typegrid{display:flex;flex-direction:column;gap:12px;padding:16px 20px;}
-  .typecard{display:flex;align-items:center;gap:14px;border-radius:16px;background:rgba(255,255,255,0.04);
+  .typecard{display:flex;align-items:center;gap:14px;border-radius:16px;background:rgba(0,0,0,0.04);
     border:1px solid var(--line);padding:16px;cursor:pointer;transition:.15s;text-align:left;}
-  .typecard:hover{background:rgba(255,255,255,0.07);}
+  .typecard:hover{background:rgba(0,0,0,0.07);}
   .typecard .icon{font-size:26px;flex-shrink:0;}
   .typecard .info{flex:1;min-width:0;}
   .typecard .info .title{font-size:15.5px;font-weight:700;color:var(--text);}
@@ -102,7 +102,7 @@
   .filterbtn{font-size:11.5px;padding:5px 10px;border-radius:99px;border:1px solid var(--line2);
     background:none;color:var(--sub2);cursor:pointer;}
   .filterbtn.on{background:rgba(245,158,11,0.15);border-color:rgba(245,158,11,0.4);color:var(--amber);}
-  .bar{height:8px;width:100%;border-radius:99px;overflow:hidden;background:rgba(255,255,255,0.06);display:flex;}
+  .bar{height:8px;width:100%;border-radius:99px;overflow:hidden;background:rgba(0,0,0,0.06);display:flex;}
   .legend{margin-top:8px;display:flex;gap:12px;font-size:11px;color:var(--sub2);flex-wrap:wrap;}
   .legend .know{color:var(--green);} .legend .shaky{color:var(--amber);} .legend .unknown{color:var(--rose);}
 
@@ -116,18 +116,18 @@
   .badge.unknown{background:rgba(244,63,94,0.15);color:var(--rose);}
 
   .flashcard{flex:1;min-height:220px;border-radius:18px;border:1px solid var(--line2);
-    background:linear-gradient(to bottom, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+    background:linear-gradient(to bottom, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
     padding:20px;display:flex;flex-direction:column;justify-content:center;cursor:pointer;}
   .flashcard .kicker{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--sub2);margin-bottom:8px;}
   .flashcard .body{white-space:pre-line;line-height:1.65;}
   .flashcard .body.q{font-size:18px;font-weight:600;color:var(--text);}
-  .flashcard .body.a{font-size:15px;color:#fed7aa;}
+  .flashcard .body.a{font-size:15px;color:#9a3412;}
   .flashcard .hint{margin-top:14px;display:flex;align-items:center;gap:5px;color:#57534e;font-size:12px;}
 
   .navrow{display:flex;align-items:center;justify-content:space-between;margin-top:16px;}
-  .navrow .circlebtn{width:38px;height:38px;border-radius:99px;border:none;background:rgba(255,255,255,0.06);
+  .navrow .circlebtn{width:38px;height:38px;border-radius:99px;border:none;background:rgba(0,0,0,0.06);
     color:var(--sub);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
-  .navrow .circlebtn:hover{background:rgba(255,255,255,0.11);}
+  .navrow .circlebtn:hover{background:rgba(0,0,0,0.11);}
   .revealbtn{padding:11px 26px;border-radius:12px;background:var(--orange);color:#fff;font-weight:700;
     border:none;font-size:14px;cursor:pointer;}
   .revealbtn:hover{background:#f97316;}
@@ -148,21 +148,21 @@
   .notes{flex:1;overflow-y:auto;padding:4px 20px 30px;}
   .notes section{margin-bottom:22px;}
   .notes h3.sec-title{font-size:15px;font-weight:800;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line);}
-  .notes h4.h3{margin:14px 0 6px;font-size:13.5px;font-weight:700;color:#fdba74;}
-  .notes p.p{font-size:14px;line-height:1.65;color:#d6d3d1;margin:0 0 8px;}
+  .notes h4.h3{margin:14px 0 6px;font-size:13.5px;font-weight:700;color:#c2410c;}
+  .notes p.p{font-size:14px;line-height:1.65;color:#44403c;margin:0 0 8px;}
   .notes ul.ul{margin:0 0 8px;padding:0;list-style:none;}
-  .notes ul.ul li{display:flex;gap:8px;font-size:14px;line-height:1.6;color:#d6d3d1;margin-bottom:5px;}
+  .notes ul.ul li{display:flex;gap:8px;font-size:14px;line-height:1.6;color:#44403c;margin-bottom:5px;}
   .notes ul.ul li .bullet{color:var(--orange);flex-shrink:0;margin-top:1px;}
   .notes table{width:100%;border-collapse:collapse;font-size:13px;}
   .notes .tablewrap{margin-bottom:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;overflow-x:auto;}
-  .notes th{text-align:left;padding:8px 10px;background:rgba(255,255,255,0.05);color:var(--sub);
+  .notes th{text-align:left;padding:8px 10px;background:rgba(0,0,0,0.05);color:var(--sub);
     font-weight:600;white-space:nowrap;}
-  .notes td{padding:8px 10px;color:#d6d3d1;border-top:1px solid var(--line);vertical-align:top;}
-  .notes pre.code{margin:0 0 12px;background:rgba(0,0,0,0.35);border:1px solid var(--line);border-radius:10px;
-    padding:10px 12px;font-size:12.3px;color:#6ee7b7;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;
+  .notes td{padding:8px 10px;color:#44403c;border-top:1px solid var(--line);vertical-align:top;}
+  .notes pre.code{margin:0 0 12px;background:rgba(0,0,0,0.04);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;font-size:12.3px;color:#15803d;white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;
     line-height:1.55;}
   .notes .callout{margin-bottom:12px;background:rgba(234,88,12,0.1);border:1px solid rgba(234,88,12,0.3);
-    border-radius:10px;padding:9px 12px;font-size:13.5px;color:#fed7aa;}
+    border-radius:10px;padding:9px 12px;font-size:13.5px;color:#9a3412;}
 
   .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(244,63,94,0.92);
     color:#fff;font-size:12px;padding:7px 14px;border-radius:99px;}
