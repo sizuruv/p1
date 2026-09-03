@@ -24,6 +24,7 @@
   function computePosition() {
     var top = 14;
     var left = 14;
+    var sitRightOfSidebar = false;
 
     // A tall left column pinned at the top-left (e.g. quiz.html's sidebar
     // nav) — sit just to its right instead of below it.
@@ -33,6 +34,7 @@
       if (navRect.left <= 20 && navRect.top <= 20) {
         if (navRect.height >= 200 && navRect.width < 400) {
           left = Math.max(left, navRect.right + 10);
+          sitRightOfSidebar = true;
         } else {
           top = Math.max(top, navRect.bottom + 10);
         }
@@ -57,6 +59,22 @@
       var eRect = expandBtn.getBoundingClientRect();
       if (eRect.top <= 20 && eRect.left <= 20) {
         top = Math.max(top, eRect.bottom + 10);
+      }
+    }
+
+    // Sitting to the right of a sidebar puts us over the main content
+    // column, which (unlike the sidebar) has no header gap of its own —
+    // its first row (page title, progress bar, ...) starts right at the
+    // top, so clear that too. This re-runs on every view switch since the
+    // MutationObserver below also watches #main's childList.
+    if (sitRightOfSidebar) {
+      var main = document.getElementById('main') || document.querySelector('main');
+      var firstRow = main && main.firstElementChild;
+      if (firstRow) {
+        var fRect = firstRow.getBoundingClientRect();
+        if (fRect.top <= 80 && fRect.width > 0 && fRect.height > 0) {
+          top = Math.max(top, fRect.bottom + 10);
+        }
       }
     }
 
@@ -103,7 +121,10 @@
     // the sidebar nav (quiz.html toggles body.nav-collapsed at runtime).
     window.addEventListener('resize', applyPosition);
     var mo = new MutationObserver(applyPosition);
-    mo.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'], subtree: true });
+    mo.observe(document.body, {
+      attributes: true, attributeFilter: ['class', 'style'],
+      childList: true, subtree: true
+    });
   }
 
   if (document.readyState === 'loading') {
