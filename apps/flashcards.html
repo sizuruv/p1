@@ -151,6 +151,7 @@
 <script>
 (function(){
   var STORAGE_KEY = 'sobangFlashcards';
+  var BACKUP_KEY = 'sobangFlashcards_backup';
   var cards = [];
   var view = 'list'; // 'list' | 'card' | 'study' | 'summary'
   var currentId = null;
@@ -168,7 +169,27 @@
     }catch(e){ return []; }
   }
   function saveCards(){
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(cards)); }catch(e){}
+    try{
+      // keep whatever was there right before this write as a 1-step
+      // undo, so an accidental overwrite (e.g. the stale-instance bug)
+      // can be recovered from.
+      var prev = localStorage.getItem(STORAGE_KEY);
+      if(prev !== null) localStorage.setItem(BACKUP_KEY, prev);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+    }catch(e){}
+  }
+  function restoreBackup(){
+    var raw;
+    try{ raw = localStorage.getItem(BACKUP_KEY); }catch(e){ raw = null; }
+    if(!raw){ alert('복원할 이전 저장본이 없어요.'); return; }
+    var parsed;
+    try{ parsed = JSON.parse(raw); }catch(e){ parsed = null; }
+    if(!Array.isArray(parsed)){ alert('이전 저장본을 읽을 수 없어요.'); return; }
+    if(!confirm('바로 이전 저장 상태로 되돌릴까요? 지금 상태는 대체됩니다.')) return;
+    cards = parsed;
+    saveCards();
+    view = 'list'; currentId = null; studyQueue = null;
+    render();
   }
   function esc(s){
     return String(s==null?'':s).replace(/[&<>"']/g, function(c){
@@ -523,18 +544,21 @@
     var topCount = document.getElementById('topCount');
     var btnList = document.getElementById('btnList');
     var btnAdd = document.getElementById('btnAdd');
+    var btnRestore = document.getElementById('btnRestore');
     var btnExport = document.getElementById('btnExport');
     var btnImport = document.getElementById('btnImport');
     if(view==='list'){
       topCount.textContent = cards.length+'개의 카드';
       btnList.style.display = 'none';
       btnAdd.style.display = '';
+      btnRestore.style.display = '';
       btnExport.style.display = '';
       btnImport.style.display = '';
     } else {
       topCount.textContent = '';
       btnList.style.display = (view==='card') ? '' : 'none';
       btnAdd.style.display = 'none';
+      btnRestore.style.display = 'none';
       btnExport.style.display = 'none';
       btnImport.style.display = 'none';
     }
@@ -552,6 +576,7 @@
         '<div class="toprow">'+
           '<span class="count" id="topCount"></span>'+
           '<button type="button" class="btn btn-ghost btn-sm" id="btnList" style="display:none;">← 목록</button>'+
+          '<button type="button" class="btn btn-ghost btn-sm" id="btnRestore">되돌리기</button>'+
           '<button type="button" class="btn btn-ghost btn-sm" id="btnImport">가져오기</button>'+
           '<button type="button" class="btn btn-ghost btn-sm" id="btnExport">내보내기</button>'+
           '<input type="file" id="fileImport" accept="application/json" style="display:none;" />'+
@@ -562,6 +587,7 @@
       '</main>';
     document.getElementById('btnAdd').onclick = addCard;
     document.getElementById('btnList').onclick = goList;
+    document.getElementById('btnRestore').onclick = restoreBackup;
     document.getElementById('btnExport').onclick = exportCards;
     var fileInput = document.getElementById('fileImport');
     document.getElementById('btnImport').onclick = function(){ fileInput.click(); };
