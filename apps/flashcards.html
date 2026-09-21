@@ -20,6 +20,7 @@
     --ink:#1b201d; --ink-soft:#5b655e; --border:#d4d9d0;
     --ember:#bd431c; --ember-ink:#ffffff; --ember-soft:#f6ded2;
     --wrong:#ab3535; --wrong-soft:#f6dcdc;
+    --correct:#2e7a49; --correct-soft:#dcefe1;
     --shadow:0 1px 2px rgba(20,20,15,.06),0 6px 20px -8px rgba(20,20,15,.18);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -76,6 +77,34 @@
   .card-row .q{font-size:.92rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .card-row .a{font-size:.78rem;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
   .card-row .chev{flex:none;color:var(--ink-soft);}
+  .card-row .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:6px;vertical-align:middle;}
+  .card-row .dot.know{background:var(--correct);}
+  .card-row .dot.wrong{background:var(--wrong);}
+
+  .stats-row{display:flex;gap:10px;margin-bottom:12px;}
+  .stat-pill{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:10px 12px;text-align:center;}
+  .stat-pill .n{font-size:1.15rem;font-weight:800;font-variant-numeric:tabular-nums;}
+  .stat-pill .l{font-size:.68rem;color:var(--ink-soft);margin-top:2px;}
+  .stat-pill.correct .n{color:var(--correct);}
+  .stat-pill.wrong .n{color:var(--wrong);}
+
+  .study-actions{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+  .study-actions .btn{width:100%;justify-content:center;padding:12px;}
+
+  .progress-track{height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-bottom:12px;}
+  .progress-fill{height:100%;background:var(--ember);}
+
+  .grade-row{display:flex;gap:10px;margin-bottom:14px;}
+  .grade-btn{flex:1;padding:14px;border-radius:14px;border:none;font-weight:800;font-size:.95rem;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .grade-btn.wrong{background:var(--wrong-soft);color:var(--wrong);}
+  .grade-btn.know{background:var(--correct-soft);color:var(--correct);}
+  .grade-btn:hover{filter:brightness(.97);}
+
+  .summary{text-align:center;padding:36px 20px 10px;}
+  .summary .big{font-size:2.2rem;font-weight:800;margin-bottom:4px;font-variant-numeric:tabular-nums;}
+  .summary .sub{color:var(--ink-soft);font-size:.88rem;margin-bottom:24px;}
 
   .study-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
   .study-nav .pos{flex:1;text-align:center;font-size:.82rem;color:var(--ink-soft);font-weight:700;}
@@ -92,6 +121,7 @@
     min-height:80px;padding:0;
   }
   .field textarea::placeholder{color:var(--ink-soft);opacity:.7;}
+  .field .text{font-size:1rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;}
   .field.answer{background:var(--ember-soft);border-color:rgba(189,67,28,.3);}
 
   .reveal-btn{
@@ -122,9 +152,13 @@
 (function(){
   var STORAGE_KEY = 'sobangFlashcards';
   var cards = [];
-  var view = 'list'; // 'list' | 'card'
+  var view = 'list'; // 'list' | 'card' | 'study' | 'summary'
   var currentId = null;
   var revealed = false;
+  var studyQueue = null; // array of ids while a study session is active
+  var studyPos = 0;
+  var sessionCorrect = 0;
+  var sessionWrong = 0;
 
   function loadCards(){
     try{
@@ -176,7 +210,7 @@
     view = 'card';
     render();
   }
-  function goList(){ view='list'; currentId=null; render(); }
+  function goList(){ view='list'; currentId=null; studyQueue=null; render(); }
   function goAdjacent(dir){
     var idx = indexOfCard(currentId);
     if(idx===-1) return;
@@ -184,6 +218,43 @@
     if(next<0 || next>=cards.length) return;
     currentId = cards[next].id;
     revealed = false;
+    render();
+  }
+
+  function shuffle(arr){
+    var a = arr.slice();
+    for(var i=a.length-1;i>0;i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var t=a[i]; a[i]=a[j]; a[j]=t;
+    }
+    return a;
+  }
+  function startStudy(opts){
+    var pool = opts.onlyWrong ? cards.filter(function(c){ return c.status==='wrong'; }) : cards;
+    if(pool.length===0) return;
+    var ids = pool.map(function(c){ return c.id; });
+    if(opts.random) ids = shuffle(ids);
+    studyQueue = ids;
+    studyPos = 0;
+    sessionCorrect = 0;
+    sessionWrong = 0;
+    revealed = false;
+    view = 'study';
+    render();
+  }
+  function currentStudyCard(){
+    if(!studyQueue || studyPos>=studyQueue.length) return null;
+    return findCard(studyQueue[studyPos]);
+  }
+  function gradeCurrent(status){
+    var c = currentStudyCard();
+    if(!c) return;
+    c.status = status;
+    if(status==='know') sessionCorrect++; else sessionWrong++;
+    saveCards();
+    studyPos++;
+    revealed = false;
+    view = (studyPos>=studyQueue.length) ? 'summary' : 'study';
     render();
   }
 
@@ -224,21 +295,81 @@
   }
 
   function renderList(){
-    if(cards.length===0){
-      return '<div class="empty">아직 카드가 없어요.<br>위쪽 "+ 새 카드"로 첫 카드를 만들어보세요.</div>';
+    var html = '';
+    if(cards.length>0){
+      var known = cards.filter(function(c){ return c.status==='know'; }).length;
+      var wrong = cards.filter(function(c){ return c.status==='wrong'; }).length;
+      html += '<div class="stats-row">'+
+        '<div class="stat-pill"><div class="n">'+cards.length+'</div><div class="l">전체</div></div>'+
+        '<div class="stat-pill correct"><div class="n">'+known+'</div><div class="l">맞음</div></div>'+
+        '<div class="stat-pill wrong"><div class="n">'+wrong+'</div><div class="l">틀림</div></div>'+
+      '</div>';
+      html += '<div class="study-actions">'+
+        '<button type="button" class="btn btn-primary" id="btnStudyAll">▶ 학습 시작 (순서대로)</button>'+
+        '<button type="button" class="btn" id="btnStudyRandom">🔀 랜덤 학습</button>'+
+        (wrong>0 ? '<button type="button" class="btn btn-ghost" id="btnStudyWrong" style="color:var(--wrong);">🔁 틀린 카드만 복습 ('+wrong+'개)</button>' : '')+
+      '</div>';
     }
-    return cards.map(function(c, i){
+    if(cards.length===0){
+      html += '<div class="empty">아직 카드가 없어요.<br>위쪽 "+ 새 카드"로 첫 카드를 만들어보세요.</div>';
+      return html;
+    }
+    html += cards.map(function(c, i){
       var qPreview = c.q ? esc(c.q).slice(0,60) : '<span style="opacity:.6">(빈 문제)</span>';
       var aPreview = c.a ? esc(c.a).slice(0,60) : '(빈 정답)';
+      var dot = c.status==='know' ? '<span class="dot know"></span>' : (c.status==='wrong' ? '<span class="dot wrong"></span>' : '');
       return '<button type="button" class="card-row" data-open="'+c.id+'">'+
         '<span class="num">'+(i+1)+'</span>'+
         '<span class="preview">'+
-          '<div class="q">'+qPreview+'</div>'+
+          '<div class="q">'+qPreview+dot+'</div>'+
           '<div class="a">'+aPreview+'</div>'+
         '</span>'+
         '<span class="chev">›</span>'+
       '</button>';
     }).join('');
+    return html;
+  }
+
+  function renderStudy(){
+    var c = currentStudyCard();
+    if(!c){ view='summary'; return renderSummary(); }
+    var pct = Math.round((studyPos/studyQueue.length)*100);
+    var html = '';
+    html += '<div class="progress-track"><div class="progress-fill" style="width:'+pct+'%"></div></div>';
+    html += '<div class="study-nav"><span class="pos">'+(studyPos+1)+' / '+studyQueue.length+'</span></div>';
+    html += '<div class="field">'+
+      '<div class="label"><span>문제</span></div>'+
+      '<div class="text">'+(esc(c.q)||'<span style="opacity:.6">(빈 문제)</span>')+'</div>'+
+    '</div>';
+    if(!revealed){
+      html += '<button type="button" class="reveal-btn" id="btnReveal">👁 정답 보기</button>';
+    } else {
+      html += '<div class="field answer">'+
+        '<div class="label"><span>정답</span></div>'+
+        '<div class="text">'+(esc(c.a)||'(빈 정답)')+'</div>'+
+      '</div>';
+      html += '<div class="grade-row">'+
+        '<button type="button" class="grade-btn wrong" id="btnGradeWrong">✕ 틀렸어요</button>'+
+        '<button type="button" class="grade-btn know" id="btnGradeKnow">⭕ 맞았어요</button>'+
+      '</div>';
+    }
+    html += '<div class="bottom-actions"><button type="button" class="btn btn-ghost" id="btnExitStudy">학습 종료</button></div>';
+    return html;
+  }
+
+  function renderSummary(){
+    var total = sessionCorrect + sessionWrong;
+    var html = '<div class="summary">';
+    html += '<div class="big">'+sessionCorrect+' / '+total+'</div>';
+    html += '<div class="sub">이번 학습에서 맞힌 개수예요</div>';
+    html += '</div>';
+    html += '<div class="study-actions">';
+    if(sessionWrong>0){
+      html += '<button type="button" class="btn btn-primary" id="btnReviewWrongAgain">🔁 틀린 '+sessionWrong+'개만 다시 학습</button>';
+    }
+    html += '<button type="button" class="btn" id="btnBackList">목록으로</button>';
+    html += '</div>';
+    return html;
   }
 
   function renderCard(){
@@ -272,7 +403,10 @@
 
   function render(){
     var main = document.getElementById('main');
-    main.innerHTML = view==='list' ? renderList() : renderCard();
+    if(view==='list') main.innerHTML = renderList();
+    else if(view==='card') main.innerHTML = renderCard();
+    else if(view==='study') main.innerHTML = renderStudy();
+    else if(view==='summary') main.innerHTML = renderSummary();
     updateTopRow();
     bind();
   }
@@ -283,11 +417,24 @@
     if(hint) hint.textContent = '저장 중...';
     if(saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(function(){
+      saveTimer = null;
       saveCards();
       var h = document.getElementById('saveHint');
       if(h) h.textContent = '✓ 저장됨';
     }, 400);
   }
+  // If the app gets backgrounded (switching apps, phone call, locking the
+  // screen) mid-edit, the 400ms debounce above might not have fired yet —
+  // flush immediately so nothing typed is ever lost.
+  function flushSave(){
+    if(saveTimer){ clearTimeout(saveTimer); saveTimer = null; }
+    saveCards();
+  }
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='hidden') flushSave();
+  });
+  window.addEventListener('pagehide', flushSave);
+  window.addEventListener('beforeunload', flushSave);
   function autoResize(el){
     el.style.height = 'auto';
     el.style.height = (el.scrollHeight + 2) + 'px';
@@ -298,6 +445,30 @@
       document.querySelectorAll('[data-open]').forEach(function(btn){
         btn.onclick = function(){ openCard(btn.getAttribute('data-open')); };
       });
+      var btnStudyAll = document.getElementById('btnStudyAll');
+      var btnStudyRandom = document.getElementById('btnStudyRandom');
+      var btnStudyWrong = document.getElementById('btnStudyWrong');
+      if(btnStudyAll) btnStudyAll.onclick = function(){ startStudy({onlyWrong:false, random:false}); };
+      if(btnStudyRandom) btnStudyRandom.onclick = function(){ startStudy({onlyWrong:false, random:true}); };
+      if(btnStudyWrong) btnStudyWrong.onclick = function(){ startStudy({onlyWrong:true, random:false}); };
+      return;
+    }
+    if(view==='study'){
+      var btnReveal2 = document.getElementById('btnReveal');
+      var btnGradeWrong = document.getElementById('btnGradeWrong');
+      var btnGradeKnow = document.getElementById('btnGradeKnow');
+      var btnExitStudy = document.getElementById('btnExitStudy');
+      if(btnReveal2) btnReveal2.onclick = function(){ revealed = true; render(); };
+      if(btnGradeWrong) btnGradeWrong.onclick = function(){ gradeCurrent('wrong'); };
+      if(btnGradeKnow) btnGradeKnow.onclick = function(){ gradeCurrent('know'); };
+      if(btnExitStudy) btnExitStudy.onclick = goList;
+      return;
+    }
+    if(view==='summary'){
+      var btnReviewWrongAgain = document.getElementById('btnReviewWrongAgain');
+      var btnBackList = document.getElementById('btnBackList');
+      if(btnReviewWrongAgain) btnReviewWrongAgain.onclick = function(){ startStudy({onlyWrong:true, random:false}); };
+      if(btnBackList) btnBackList.onclick = goList;
       return;
     }
     var qInput = document.getElementById('qInput');
@@ -343,7 +514,7 @@
       btnImport.style.display = '';
     } else {
       topCount.textContent = '';
-      btnList.style.display = '';
+      btnList.style.display = (view==='card') ? '' : 'none';
       btnAdd.style.display = 'none';
       btnExport.style.display = 'none';
       btnImport.style.display = 'none';
