@@ -13,6 +13,7 @@ const PRECACHE_URLS = [
   './apps/notes.html',
   './apps/quiz.html',
   './apps/calculator.html',
+  './apps/flashcards.html',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png'

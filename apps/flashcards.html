@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<script src="../shell.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+<title>플래시카드</title>
+<link rel="manifest" href="../manifest.json" />
+<meta name="theme-color" content="#bd431c" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="플래시카드" />
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="../icons/icon-512.png" />
+<style>
+  :root{
+    --bg:#eef0ec; --surface:#ffffff; --surface-2:#e3e7e1;
+    --ink:#1b201d; --ink-soft:#5b655e; --border:#d4d9d0;
+    --ember:#bd431c; --ember-ink:#ffffff; --ember-soft:#f6ded2;
+    --wrong:#ab3535; --wrong-soft:#f6dcdc;
+    --shadow:0 1px 2px rgba(20,20,15,.06),0 6px 20px -8px rgba(20,20,15,.18);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;touch-action:manipulation;}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    min-height:100vh;min-height:100dvh;
+  }
+  #app{max-width:640px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+  header{
+    padding:calc(22px + env(safe-area-inset-top,0px)) 20px 16px;
+    border-bottom:1px solid var(--border);
+  }
+  .brand{display:flex;align-items:center;gap:8px;color:var(--ember);font-size:11px;font-weight:800;
+    letter-spacing:.14em;text-transform:uppercase;}
+  h1{margin:6px 0 2px;font-size:22px;font-weight:800;letter-spacing:-.01em;}
+  .subtitle{margin:0;color:var(--ink-soft);font-size:13px;}
+
+  main{flex:1;padding:16px 20px 40px;}
+
+  .toprow{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+  .toprow .count{font-size:13px;color:var(--ink-soft);font-weight:600;flex:1;}
+  .btn{
+    appearance:none;border:1px solid var(--border);background:var(--surface);
+    color:var(--ink);font-weight:700;font-size:.86rem;
+    padding:9px 14px;border-radius:10px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .btn:hover{background:var(--surface-2);}
+  .btn-primary{background:var(--ember);border-color:var(--ember);color:var(--ember-ink);}
+  .btn-primary:hover{filter:brightness(1.06);}
+  .btn-ghost{background:none;border-color:transparent;color:var(--ink-soft);}
+  .btn-ghost:hover{background:var(--surface-2);color:var(--ink);}
+  .btn-danger{color:var(--wrong);}
+  .btn-sm{padding:6px 10px;font-size:.78rem;border-radius:8px;}
+
+  .empty{
+    text-align:center;color:var(--ink-soft);font-size:.9rem;line-height:1.7;
+    padding:60px 20px;border:1px dashed var(--border);border-radius:16px;
+  }
+
+  .card-row{
+    display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:14px 16px;margin-bottom:10px;cursor:pointer;box-shadow:var(--shadow);
+  }
+  .card-row:hover{background:var(--surface-2);}
+  .card-row .num{
+    flex:none;width:28px;height:28px;border-radius:50%;background:var(--ember-soft);color:var(--ember);
+    display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:800;
+  }
+  .card-row .preview{flex:1;min-width:0;}
+  .card-row .q{font-size:.92rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card-row .a{font-size:.78rem;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+  .card-row .chev{flex:none;color:var(--ink-soft);}
+
+  .study-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+  .study-nav .pos{flex:1;text-align:center;font-size:.82rem;color:var(--ink-soft);font-weight:700;}
+
+  .field{
+    background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:16px;margin-bottom:14px;box-shadow:var(--shadow);
+  }
+  .field .label{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .field .label span{font-size:.72rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);}
+  .field textarea{
+    width:100%;border:none;background:none;color:var(--ink);
+    font-family:inherit;font-size:1rem;line-height:1.6;resize:none;outline:none;
+    min-height:80px;padding:0;
+  }
+  .field textarea::placeholder{color:var(--ink-soft);opacity:.7;}
+  .field.answer{background:var(--ember-soft);border-color:rgba(189,67,28,.3);}
+
+  .reveal-btn{
+    display:flex;width:100%;justify-content:center;align-items:center;gap:6px;
+    padding:13px;border-radius:14px;border:1.5px dashed var(--border);background:none;
+    color:var(--ink-soft);font-weight:700;font-size:.9rem;cursor:pointer;margin-bottom:14px;
+  }
+  .reveal-btn:hover{background:var(--surface-2);color:var(--ink);}
+
+  .save-hint{
+    text-align:center;font-size:.74rem;color:var(--ink-soft);margin-top:2px;min-height:1.4em;
+    transition:opacity .3s ease;
+  }
+
+  .bottom-actions{display:flex;gap:10px;margin-top:6px;}
+  .bottom-actions .btn{flex:1;justify-content:center;}
+
+  .note-box{
+    font-size:.78rem;color:var(--ink-soft);line-height:1.6;
+    background:var(--surface-2);border-radius:10px;padding:10px 12px;margin-bottom:16px;
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function(){
+  var STORAGE_KEY = 'sobangFlashcards';
+  var cards = [];
+  var view = 'list'; // 'list' | 'card'
+  var currentId = null;
+  var revealed = false;
+
+  function loadCards(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    }catch(e){ return []; }
+  }
+  function saveCards(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(cards)); }catch(e){}
+  }
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function findCard(id){
+    for(var i=0;i<cards.length;i++){ if(cards[i].id===id) return cards[i]; }
+    return null;
+  }
+  function indexOfCard(id){
+    for(var i=0;i<cards.length;i++){ if(cards[i].id===id) return i; }
+    return -1;
+  }
+  function newId(){ return Date.now()+'-'+Math.random().toString(36).slice(2,7); }
+
+  function addCard(){
+    var card = { id: newId(), q:'', a:'' };
+    cards.unshift(card);
+    saveCards();
+    currentId = card.id;
+    revealed = true;
+    view = 'card';
+    render();
+  }
+  function deleteCard(id){
+    if(!confirm('이 카드를 삭제할까요? 되돌릴 수 없습니다.')) return;
+    var idx = indexOfCard(id);
+    if(idx===-1) return;
+    cards.splice(idx,1);
+    saveCards();
+    view = 'list';
+    currentId = null;
+    render();
+  }
+  function openCard(id){
+    currentId = id;
+    revealed = false;
+    view = 'card';
+    render();
+  }
+  function goList(){ view='list'; currentId=null; render(); }
+  function goAdjacent(dir){
+    var idx = indexOfCard(currentId);
+    if(idx===-1) return;
+    var next = idx + dir;
+    if(next<0 || next>=cards.length) return;
+    currentId = cards[next].id;
+    revealed = false;
+    render();
+  }
+
+  function exportCards(){
+    var blob = new Blob([JSON.stringify(cards, null, 2)], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var d = new Date();
+    var stamp = d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+    a.href = url; a.download = 'flashcards-backup-'+stamp+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  function importCardsFromFile(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var incoming;
+      try{ incoming = JSON.parse(reader.result); }catch(e){
+        alert('파일을 읽을 수 없어요. 올바른 백업 파일인지 확인해주세요.');
+        return;
+      }
+      if(!Array.isArray(incoming)){
+        alert('올바른 백업 파일 형식이 아니에요.');
+        return;
+      }
+      var added = 0;
+      incoming.forEach(function(item){
+        if(item && typeof item==='object' && ('q' in item || 'a' in item)){
+          cards.push({ id:newId(), q:item.q||'', a:item.a||'' });
+          added++;
+        }
+      });
+      saveCards();
+      alert(added+'개 카드를 가져왔어요 (기존 카드에 추가됨).');
+      view='list'; currentId=null; render();
+    };
+    reader.readAsText(file);
+  }
+
+  function renderList(){
+    if(cards.length===0){
+      return '<div class="empty">아직 카드가 없어요.<br>위쪽 "+ 새 카드"로 첫 카드를 만들어보세요.</div>';
+    }
+    return cards.map(function(c, i){
+      var qPreview = c.q ? esc(c.q).slice(0,60) : '<span style="opacity:.6">(빈 문제)</span>';
+      var aPreview = c.a ? esc(c.a).slice(0,60) : '(빈 정답)';
+      return '<button type="button" class="card-row" data-open="'+c.id+'">'+
+        '<span class="num">'+(i+1)+'</span>'+
+        '<span class="preview">'+
+          '<div class="q">'+qPreview+'</div>'+
+          '<div class="a">'+aPreview+'</div>'+
+        '</span>'+
+        '<span class="chev">›</span>'+
+      '</button>';
+    }).join('');
+  }
+
+  function renderCard(){
+    var c = findCard(currentId);
+    if(!c){ view='list'; return renderList(); }
+    var idx = indexOfCard(currentId);
+    var html = '';
+    html += '<div class="study-nav">'+
+      '<button type="button" class="btn btn-ghost btn-sm" id="btnPrev" '+(idx<=0?'disabled':'')+'>← 이전</button>'+
+      '<span class="pos">'+(idx+1)+' / '+cards.length+'</span>'+
+      '<button type="button" class="btn btn-ghost btn-sm" id="btnNext" '+(idx>=cards.length-1?'disabled':'')+'>다음 →</button>'+
+    '</div>';
+    html += '<div class="field">'+
+      '<div class="label"><span>문제</span></div>'+
+      '<textarea id="qInput" placeholder="문제를 입력하세요...">'+esc(c.q)+'</textarea>'+
+    '</div>';
+    if(!revealed){
+      html += '<button type="button" class="reveal-btn" id="btnReveal">👁 정답 보기 / 쓰기</button>';
+    } else {
+      html += '<div class="field answer">'+
+        '<div class="label"><span>정답</span></div>'+
+        '<textarea id="aInput" placeholder="정답을 입력하세요...">'+esc(c.a)+'</textarea>'+
+      '</div>';
+    }
+    html += '<div class="save-hint" id="saveHint">&nbsp;</div>';
+    html += '<div class="bottom-actions">'+
+      '<button type="button" class="btn btn-ghost btn-danger" id="btnDelete">🗑 카드 삭제</button>'+
+    '</div>';
+    return html;
+  }
+
+  function render(){
+    var main = document.getElementById('main');
+    main.innerHTML = view==='list' ? renderList() : renderCard();
+    updateTopRow();
+    bind();
+  }
+
+  var saveTimer = null;
+  function scheduleSave(){
+    var hint = document.getElementById('saveHint');
+    if(hint) hint.textContent = '저장 중...';
+    if(saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){
+      saveCards();
+      var h = document.getElementById('saveHint');
+      if(h) h.textContent = '✓ 저장됨';
+    }, 400);
+  }
+  function autoResize(el){
+    el.style.height = 'auto';
+    el.style.height = (el.scrollHeight + 2) + 'px';
+  }
+
+  function bind(){
+    if(view==='list'){
+      document.querySelectorAll('[data-open]').forEach(function(btn){
+        btn.onclick = function(){ openCard(btn.getAttribute('data-open')); };
+      });
+      return;
+    }
+    var qInput = document.getElementById('qInput');
+    var aInput = document.getElementById('aInput');
+    var btnPrev = document.getElementById('btnPrev');
+    var btnNext = document.getElementById('btnNext');
+    var btnReveal = document.getElementById('btnReveal');
+    var btnDelete = document.getElementById('btnDelete');
+
+    if(qInput){
+      autoResize(qInput);
+      qInput.oninput = function(){
+        var c = findCard(currentId);
+        if(c){ c.q = qInput.value; scheduleSave(); }
+        autoResize(qInput);
+      };
+    }
+    if(aInput){
+      autoResize(aInput);
+      aInput.oninput = function(){
+        var c = findCard(currentId);
+        if(c){ c.a = aInput.value; scheduleSave(); }
+        autoResize(aInput);
+      };
+    }
+    if(btnPrev) btnPrev.onclick = function(){ goAdjacent(-1); };
+    if(btnNext) btnNext.onclick = function(){ goAdjacent(1); };
+    if(btnReveal) btnReveal.onclick = function(){ revealed = true; render(); if(document.getElementById('aInput')) document.getElementById('aInput').focus(); };
+    if(btnDelete) btnDelete.onclick = function(){ deleteCard(currentId); };
+  }
+
+  function updateTopRow(){
+    var topCount = document.getElementById('topCount');
+    var btnList = document.getElementById('btnList');
+    var btnAdd = document.getElementById('btnAdd');
+    var btnExport = document.getElementById('btnExport');
+    var btnImport = document.getElementById('btnImport');
+    if(view==='list'){
+      topCount.textContent = cards.length+'개의 카드';
+      btnList.style.display = 'none';
+      btnAdd.style.display = '';
+      btnExport.style.display = '';
+      btnImport.style.display = '';
+    } else {
+      topCount.textContent = '';
+      btnList.style.display = '';
+      btnAdd.style.display = 'none';
+      btnExport.style.display = 'none';
+      btnImport.style.display = 'none';
+    }
+  }
+
+  function renderShell(){
+    var app = document.getElementById('app');
+    app.innerHTML =
+      '<header>'+
+        '<div class="brand">🔥 FIRE ENGINEER</div>'+
+        '<h1>플래시카드</h1>'+
+        '<p class="subtitle">직접 만드는 문제·정답 카드</p>'+
+      '</header>'+
+      '<main>'+
+        '<div class="toprow">'+
+          '<span class="count" id="topCount"></span>'+
+          '<button type="button" class="btn btn-ghost btn-sm" id="btnList" style="display:none;">← 목록</button>'+
+          '<button type="button" class="btn btn-ghost btn-sm" id="btnImport">가져오기</button>'+
+          '<button type="button" class="btn btn-ghost btn-sm" id="btnExport">내보내기</button>'+
+          '<input type="file" id="fileImport" accept="application/json" style="display:none;" />'+
+          '<button type="button" class="btn btn-primary btn-sm" id="btnAdd">+ 새 카드</button>'+
+        '</div>'+
+        '<div class="note-box">이 기기(브라우저)에 자동 저장돼요. 다른 기기와는 공유되지 않으니, 다른 폰·PC로 옮기고 싶으면 "내보내기"로 파일을 저장한 뒤 그쪽에서 "가져오기"로 불러오세요.</div>'+
+        '<div id="main"></div>'+
+      '</main>';
+    document.getElementById('btnAdd').onclick = addCard;
+    document.getElementById('btnList').onclick = goList;
+    document.getElementById('btnExport').onclick = exportCards;
+    var fileInput = document.getElementById('fileImport');
+    document.getElementById('btnImport').onclick = function(){ fileInput.click(); };
+    fileInput.onchange = function(){
+      if(fileInput.files && fileInput.files[0]) importCardsFromFile(fileInput.files[0]);
+      fileInput.value = '';
+    };
+    render();
+  }
+
+  cards = loadCards();
+  renderShell();
+})();
+</script>
+</body>
+</html>
