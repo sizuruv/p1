@@ -436,6 +436,22 @@
   });
   window.addEventListener('pagehide', flushSave);
   window.addEventListener('beforeunload', flushSave);
+  // iOS Safari (especially the home-screen icon PWA) often resumes a
+  // suspended page instance with a stale in-memory `cards` snapshot instead
+  // of reloading. If that stale copy gets edited and saved, it silently
+  // overwrites newer cards added elsewhere — so whenever the page becomes
+  // visible again, re-sync memory from storage before anything else can
+  // write to it. (hidden always flushes first, so this never drops an
+  // in-flight edit.)
+  function resyncFromStorage(){
+    if(!document.getElementById('main')) return; // not rendered yet
+    cards = loadCards();
+    render();
+  }
+  window.addEventListener('pageshow', resyncFromStorage);
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='visible') resyncFromStorage();
+  });
   function autoResize(el){
     el.style.height = 'auto';
     el.style.height = (el.scrollHeight + 2) + 'px';
