@@ -396,6 +396,7 @@
     }
     html += '<div class="save-hint" id="saveHint">&nbsp;</div>';
     html += '<div class="bottom-actions">'+
+      '<button type="button" class="btn btn-primary" id="btnAddNext">+ 다음 카드 만들기</button>'+
       '<button type="button" class="btn btn-ghost btn-danger" id="btnDelete">🗑 카드 삭제</button>'+
     '</div>';
     return html;
@@ -477,6 +478,7 @@
     var btnNext = document.getElementById('btnNext');
     var btnReveal = document.getElementById('btnReveal');
     var btnDelete = document.getElementById('btnDelete');
+    var btnAddNext = document.getElementById('btnAddNext');
 
     if(qInput){
       autoResize(qInput);
@@ -498,6 +500,7 @@
     if(btnNext) btnNext.onclick = function(){ goAdjacent(1); };
     if(btnReveal) btnReveal.onclick = function(){ revealed = true; render(); if(document.getElementById('aInput')) document.getElementById('aInput').focus(); };
     if(btnDelete) btnDelete.onclick = function(){ deleteCard(currentId); };
+    if(btnAddNext) btnAddNext.onclick = function(){ flushSave(); addCard(); };
   }
 
   function updateTopRow(){
