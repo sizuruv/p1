@@ -208,7 +208,7 @@
 
   function addCard(){
     var card = { id: newId(), q:'', a:'' };
-    cards.unshift(card);
+    cards.push(card);
     saveCards();
     currentId = card.id;
     revealed = true;
