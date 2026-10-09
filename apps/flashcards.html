@@ -191,6 +191,20 @@
     view = 'list'; currentId = null; studyQueue = null;
     render();
   }
+  // card ids are "<creation timestamp>-<random>", so the original creation
+  // order can always be recovered from the id even if the stored array got
+  // reordered (e.g. by the old "newest first" behavior). Runs once at
+  // startup and re-saves only if the order actually needed fixing.
+  function sortCardsByCreatedAt(){
+    function ts(c){
+      var m = /^(\d+)-/.exec(String(c.id));
+      return m ? parseInt(m[1],10) : 0;
+    }
+    var before = cards.map(function(c){ return c.id; }).join(',');
+    cards.sort(function(a,b){ return ts(a)-ts(b); });
+    var after = cards.map(function(c){ return c.id; }).join(',');
+    if(before !== after) saveCards();
+  }
   function esc(s){
     return String(s==null?'':s).replace(/[&<>"']/g, function(c){
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
@@ -599,6 +613,7 @@
   }
 
   cards = loadCards();
+  sortCardsByCreatedAt();
   renderShell();
 })();
 </script>
