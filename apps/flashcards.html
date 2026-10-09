@@ -303,6 +303,19 @@
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+  function exportCardsAsText(){
+    var text = cards.map(function(c, i){
+      return '['+(i+1)+'] 문제: '+(c.q || '(빈 문제)')+'\n정답: '+(c.a || '(빈 정답)');
+    }).join('\n\n');
+    var blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var d = new Date();
+    var stamp = d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+    a.href = url; a.download = 'flashcards-'+stamp+'.txt';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
   function importCardsFromFile(file){
     var reader = new FileReader();
     reader.onload = function(){
@@ -560,6 +573,7 @@
     var btnAdd = document.getElementById('btnAdd');
     var btnRestore = document.getElementById('btnRestore');
     var btnExport = document.getElementById('btnExport');
+    var btnExportText = document.getElementById('btnExportText');
     var btnImport = document.getElementById('btnImport');
     if(view==='list'){
       topCount.textContent = cards.length+'개의 카드';
@@ -567,6 +581,7 @@
       btnAdd.style.display = '';
       btnRestore.style.display = '';
       btnExport.style.display = '';
+      btnExportText.style.display = '';
       btnImport.style.display = '';
     } else {
       topCount.textContent = '';
@@ -574,6 +589,7 @@
       btnAdd.style.display = 'none';
       btnRestore.style.display = 'none';
       btnExport.style.display = 'none';
+      btnExportText.style.display = 'none';
       btnImport.style.display = 'none';
     }
   }
@@ -593,6 +609,7 @@
           '<button type="button" class="btn btn-ghost btn-sm" id="btnRestore">되돌리기</button>'+
           '<button type="button" class="btn btn-ghost btn-sm" id="btnImport">가져오기</button>'+
           '<button type="button" class="btn btn-ghost btn-sm" id="btnExport">내보내기</button>'+
+          '<button type="button" class="btn btn-ghost btn-sm" id="btnExportText">텍스트로 저장</button>'+
           '<input type="file" id="fileImport" accept="application/json" style="display:none;" />'+
           '<button type="button" class="btn btn-primary btn-sm" id="btnAdd">+ 새 카드</button>'+
         '</div>'+
@@ -603,6 +620,7 @@
     document.getElementById('btnList').onclick = goList;
     document.getElementById('btnRestore').onclick = restoreBackup;
     document.getElementById('btnExport').onclick = exportCards;
+    document.getElementById('btnExportText').onclick = exportCardsAsText;
     var fileInput = document.getElementById('fileImport');
     document.getElementById('btnImport').onclick = function(){ fileInput.click(); };
     fileInput.onchange = function(){
