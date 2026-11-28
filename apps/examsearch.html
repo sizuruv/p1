@@ -70,6 +70,7 @@
     <div class="mode-tabs">
       <button type="button" class="mode-btn active" data-mode="text" onclick="setMode('text')">문제별</button>
       <button type="button" class="mode-btn" data-mode="keyword" onclick="setMode('keyword')">키워드별</button>
+      <button type="button" class="mode-btn" data-mode="page" onclick="setMode('page')">페이지별</button>
     </div>
     <div class="search-row">
       <input type="text" id="searchInput" class="search-input" placeholder="문제 내용으로 검색 (예: 환기지배형, 포소화약제)" oninput="runSearch()">
@@ -95,7 +96,9 @@
     const input = document.getElementById('searchInput');
     input.placeholder = m === 'text'
       ? '문제 내용으로 검색 (예: 환기지배형, 포소화약제)'
-      : '키워드로 검색 (예: ODP, 방폭구조)';
+      : m === 'keyword'
+      ? '키워드로 검색 (예: ODP, 방폭구조)'
+      : '적중 소방기술사 교재 페이지 번호로 검색 (예: 124)';
     renderLimit = PAGE_SIZE;
     runSearch();
   }
@@ -116,6 +119,12 @@
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
+  function pageNum(pg) {
+    if (!pg) return Infinity;
+    const m = pg.match(/\d+/);
+    return m ? parseInt(m[0], 10) : Infinity;
+  }
+
   function highlight(text, q) {
     const safe = escapeHtml(text);
     if (!q) return safe;
@@ -134,14 +143,18 @@
     if (!q) {
       metaEl.textContent = '';
       listEl.innerHTML = '<div class="empty-state">검색어를 입력하면 결과가 여기에 바로 나타납니다.<br>' +
-        '"문제별"은 문제 전문, "키워드별"은 기출분석 키워드 기준으로 찾습니다.</div>';
+        '"문제별"은 문제 전문, "키워드별"은 기출분석 키워드, "페이지별"은 적중 소방기술사 교재 페이지 기준으로 찾습니다.</div>';
       return;
     }
 
     const qLower = q.toLowerCase();
-    const field = mode === 'text' ? 't' : 'kw';
+    const field = mode === 'text' ? 't' : mode === 'keyword' ? 'kw' : 'pg';
     const matches = EXAM_DB.filter(r => (r[field] || '').toLowerCase().includes(qLower));
-    matches.sort((a, b) => (b.r - a.r) || (b.s - a.s));
+    if (mode === 'page') {
+      matches.sort((a, b) => (pageNum(a.pg) - pageNum(b.pg)) || (b.r - a.r));
+    } else {
+      matches.sort((a, b) => (b.r - a.r) || (b.s - a.s));
+    }
 
     metaEl.textContent = '결과 ' + matches.length.toLocaleString() + '건';
 
@@ -169,7 +182,7 @@
       const c = MAJOR_COLORS[m] || '#8a847d';
       return '<span class="major-chip" style="background:' + c + '">' + escapeHtml(m) + '</span>';
     }).join('');
-    const pageChip = r.pg ? '<span class="page-chip">적중 ' + escapeHtml(r.pg) + '</span>' : '';
+    const pageChip = r.pg ? '<span class="page-chip">적중 ' + highlight(r.pg, mode === 'page' ? q : '') + '</span>' : '';
     return '<div class="result-card">' +
       '<div class="result-top">' +
         '<span class="session-badge">' + escapeHtml(session) + '</span>' +
